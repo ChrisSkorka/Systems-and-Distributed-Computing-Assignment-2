@@ -1,0 +1,37 @@
+// /////////////////////////////////////////////////////////////////////////////
+// Filename:        sharedmemory.h
+// Author:          Christopher Skorka
+// Date Created:    10/09/2018
+// Description:     Creates shared memory that contained a struct with fields
+//					for all communication parameters
+// /////////////////////////////////////////////////////////////////////////////
+
+// MACROS //////////////////////////////////////////////////////////////////////
+#ifndef SHAREDMEMORY_H
+#define SHAREDMEMORY_H
+
+// TYPEDEFS ////////////////////////////////////////////////////////////////////
+typedef struct{
+	int request;
+	char request_status;
+	int result[10];
+	char result_status[10];
+	char progress[10];
+} Memory;
+
+// PROTOTYPES //////////////////////////////////////////////////////////////////
+
+// -----------------------------------------------------------------------------
+// gets the pointer to shared memory that contains the Memory struct, its used 
+// by the client and server to obtain a pointer to the same object
+// Parameters:	void
+// Returns:		Memory*	  pointer to the shared memory containing struct Memory
+// -----------------------------------------------------------------------------
+Memory* getSharedMemory();
+
+// MACROS //////////////////////////////////////////////////////////////////////
+#endif
+
+// /////////////////////////////////////////////////////////////////////////////
+// END OF FILE
+// /////////////////////////////////////////////////////////////////////////////

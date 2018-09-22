@@ -9,6 +9,7 @@
 // INCLUDES ////////////////////////////////////////////////////////////////////
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include "sharedmemory.h"
 #include <pthread.h>
@@ -19,7 +20,7 @@ typedef enum { false, true } bool;
 // GLOBALS /////////////////////////////////////////////////////////////////////
 // PROTOTYPES //////////////////////////////////////////////////////////////////
 void main(int argc, char** argv);
-void updateProgress(void *vargp);
+void* updateProgress(void *vargp);
 
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
@@ -42,12 +43,6 @@ void main(int argc, char** argv){
 	// struct shared with server for communication
 	Memory* server = getSharedMemory();
 
-	// start progress thread
-	// setup arguments and start
-    pthread_t* thread = (pthread_t*) calloc(1, sizeof(pthread_t));
-    pthread_attr_t* attr = (pthread_attr_t*) calloc(1, sizeof(pthread_attr_t));
-	pthread_create(thread, attr, &updateProgress, (void *) server);
-
 	// buffer for std input
 	char cmd_buffer[256] = "";
 
@@ -61,10 +56,39 @@ void main(int argc, char** argv){
 	server->request = 1234;
 	server->request_status = 'X';
 
-	sleep(10);
+	printf("Progess\n");
+
+	// start progress thread
+	// setup arguments and start
+    pthread_t* thread = (pthread_t*) calloc(1, sizeof(pthread_t));
+    pthread_attr_t* attr = (pthread_attr_t*) calloc(1, sizeof(pthread_attr_t));
+	pthread_create(thread, attr, &updateProgress, (void *) server);
+
+	printf("> ");
+
+	// query for input loop
+	while(strcmp(cmd_buffer, "q") != 0){
+
+		// query
+		scanf("%s", cmd_buffer);
+
+		// move progress line
+		
+		printf("\e[s\e[1G\e[2A\e[1M\e[u\n> ");
+
+		// move 
+
+	}
+
+	
+	
+
+	// sleep(5);
+
+	printf("\n");
 
 	// wait for thread to finish
-	pthread_join(*thread, NULL);
+	// pthread_join(thread, NULL);
 
 }
 
@@ -74,7 +98,7 @@ void main(int argc, char** argv){
 // Parameters:	void
 // Returns:		void
 // -----------------------------------------------------------------------------
-void updateProgress(void *vargp){
+void* updateProgress(void *vargp){
 
 	while(1){
 
@@ -82,12 +106,14 @@ void updateProgress(void *vargp){
 		Memory* server = (Memory*) vargp;
 
 		// compute progress string
-		char* progressStr[256];
+		char progressStr[256];
 		server->request++;
 		sprintf(progressStr, "%i", server->request);
 
 		// insert progress above user input
-		printf(progressStr);
+		// save, move 1 up, move to col 1, clear line, string, restore pos
+		printf("\e[s\e[1A\e[1G\e[2K%s\e[u", progressStr);
+		fflush(stdout);
 
 		sleep(1);
 

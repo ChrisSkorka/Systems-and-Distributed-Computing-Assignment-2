@@ -74,7 +74,7 @@ void main(int argc, char** argv){
 
 		// move progress line
 		
-		printf("\e[s\e[1G\e[2A\e[1M\e[u\n> ");
+		printf("\e[s\e[1G\e[1A\e[2K\e[1A\e[2K> %s\e[u> ", cmd_buffer);
 
 		// move 
 

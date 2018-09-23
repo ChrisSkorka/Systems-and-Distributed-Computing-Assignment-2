@@ -48,5 +48,16 @@ Memory* getSharedMemory(){
 	if((void *)(sharedmem = shmat(shmid, NULL, 0)) == (void *) -1)
 		return NULL;
 
+	// initialize 
+	sharedmem->active = 1;
+	sharedmem->request = 0;
+	sharedmem->request_status = 0;
+	
+	for(int i = 0; i < 10; i++){
+		sharedmem->result[i] = 0;
+		sharedmem->result_status[i] = 0;
+		sharedmem->progress[i] = 0;
+	}
+
 	return sharedmem;
 }

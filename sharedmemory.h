@@ -12,9 +12,10 @@
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
 typedef struct{
-	int request;
+	int active;
+	unsigned long request;
 	char request_status;
-	int result[10];
+	unsigned long result[10];
 	char result_status[10];
 	char progress[10];
 } Memory;

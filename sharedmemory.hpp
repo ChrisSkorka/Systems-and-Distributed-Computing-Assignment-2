@@ -30,6 +30,14 @@ typedef struct{
 // -----------------------------------------------------------------------------
 Memory* getSharedMemory();
 
+// -----------------------------------------------------------------------------
+// initializes the hsared memory, sets all fields to 0, except for avtive which 
+// is set to 1, this is invoked by the server on startup
+// Parameters:	Memory* sharedmem: the shared memory to be initalized
+// Returns:		void
+// -----------------------------------------------------------------------------
+void initializeSharedMemory(Memory* sharedmem);
+
 // MACROS //////////////////////////////////////////////////////////////////////
 #endif
 

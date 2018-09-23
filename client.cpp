@@ -11,21 +11,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include "sharedmemory.h"
 #include <pthread.h>
+#include "sharedmemory.hpp"
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
-typedef enum { false, true } bool;
+// typedef enum { false, true } bool;
 
 // GLOBALS /////////////////////////////////////////////////////////////////////
 Memory* server;
 long long int numbers[10] = {-1};
 
 // PROTOTYPES //////////////////////////////////////////////////////////////////
-void main(int argc, char** argv);
+int main(int argc, char** argv);
 void printAbove(char* string);
-void* updateProgressThreadRunnable(void *vargp)
-void* updateResultsThreadRunnable(void* vargp)
+void* updateProgressThreadRunnable(void *vargp);
+void* updateResultsThreadRunnable(void* vargp);
 
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
@@ -40,9 +40,9 @@ void* updateResultsThreadRunnable(void* vargp)
 // main client, manages all client related tasks
 // 
 // Parameters:	cmd arguments
-// Returns:		void
+// Returns:		int: return status
 // -----------------------------------------------------------------------------
-void main(int argc, char** argv){
+int main(int argc, char** argv){
 	printf("Client\n");
 
 	// struct shared with server for communication
@@ -183,3 +183,7 @@ void* updateResultsThreadRunnable(void* vargp){
 		}
 	}
 }
+
+// /////////////////////////////////////////////////////////////////////////////
+// END OF FILE
+// /////////////////////////////////////////////////////////////////////////////

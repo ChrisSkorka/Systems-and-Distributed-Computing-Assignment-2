@@ -14,12 +14,13 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
-#include "sharedmemory.h"
+#include "sharedmemory.hpp"
 
 // GLOBALS /////////////////////////////////////////////////////////////////////
 #define SHMSZ 27
 // PROTOTYPES //////////////////////////////////////////////////////////////////
 Memory* getSharedMemory();
+void initializeSharedMemory(Memory* sharedmem);
 
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
@@ -45,8 +46,19 @@ Memory* getSharedMemory(){
     if((shmid = shmget(key, SHMSZ, IPC_CREAT | 0666)) < 0)
         return NULL;
 
-	if((void *)(sharedmem = shmat(shmid, NULL, 0)) == (void *) -1)
+	if((void *)(sharedmem = (Memory*)shmat(shmid, NULL, 0)) == (void *) -1)
 		return NULL;
+
+	return sharedmem;
+}
+
+// -----------------------------------------------------------------------------
+// initializes the hsared memory, sets all fields to 0, except for avtive which 
+// is set to 1, this is invoked by the server on startup
+// Parameters:	Memory* sharedmem: the shared memory to be initalized
+// Returns:		void
+// -----------------------------------------------------------------------------
+void initializeSharedMemory(Memory* sharedmem){
 
 	// initialize 
 	sharedmem->active = 1;
@@ -59,5 +71,8 @@ Memory* getSharedMemory(){
 		sharedmem->progress[i] = 0;
 	}
 
-	return sharedmem;
 }
+
+// /////////////////////////////////////////////////////////////////////////////
+// END OF FILE
+// /////////////////////////////////////////////////////////////////////////////

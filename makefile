@@ -1,8 +1,8 @@
 project: client server
 
-client: client.c sharedmemory.c sharedmemory.h
-	gcc -o client client.c sharedmemory.c -lpthread
+client: client.cpp sharedmemory.cpp sharedmemory.hpp
+	gcc -o client client.cpp sharedmemory.cpp -lpthread
 
-server: server.c sharedmemory.c sharedmemory.h
-	gcc -o server server.c sharedmemory.c -lpthread
+server: server.cpp sharedmemory.cpp sharedmemory.hpp
+	gcc -o server server.cpp sharedmemory.cpp -lpthread
 	

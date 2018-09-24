@@ -10,14 +10,17 @@
 #ifndef SHAREDMEMORY_H
 #define SHAREDMEMORY_H
 
+// GLOBALS//////////////////////////////////////////////////////////////////////
+#define SLOT_COUNT 10
+
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
 typedef struct{
 	int active;
 	unsigned long request;
 	char request_status;
-	unsigned long result[10];
-	char result_status[10];
-	char progress[10];
+	unsigned long result[SLOT_COUNT];
+	char result_status[SLOT_COUNT];
+	char progress[SLOT_COUNT];
 } Memory;
 
 // PROTOTYPES //////////////////////////////////////////////////////////////////

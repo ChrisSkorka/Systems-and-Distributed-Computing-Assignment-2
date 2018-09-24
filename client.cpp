@@ -1,5 +1,5 @@
 // /////////////////////////////////////////////////////////////////////////////
-// Filename:        client.c
+// Filename:        client.cpp
 // Author:          Christopher Skorka
 // Date Created:    10/09/2018
 // Description:     Client side of the program, it queries the user for numbers
@@ -19,7 +19,9 @@
 
 // GLOBALS /////////////////////////////////////////////////////////////////////
 Memory* server;
-long long int numbers[10] = {-1};
+unsigned long numbers[SLOT_COUNT] = {0};
+char slotsUsed[SLOT_COUNT] = {0};
+char counter = 0;
 
 // PROTOTYPES //////////////////////////////////////////////////////////////////
 int main(int argc, char** argv);
@@ -58,9 +60,6 @@ int main(int argc, char** argv){
 		scanf("%s", cmd_buffer);
 	}
 
-	server->request = 1234;
-	server->request_status = 'X';
-
 	printf("Progess\n");
 
 	// start update progress and results thread
@@ -86,7 +85,37 @@ int main(int argc, char** argv){
 		// save, move left, move 1 up, clear input, move 1 up, clear progress, write command, restore, write chammand promt
 		printf("\e[s\e[1G\e[1A\e[2K\e[1A\e[2K> %s\e[u> ", cmd_buffer);
 
-		// move 
+		// send request
+
+		long long int number = -1;
+		long long int max = 1;
+		max <<= 32;
+		sscanf(cmd_buffer, "%lli", &number);
+
+		if(number < 0 || number >= max){
+			printf("Invalid input ");
+			continue;
+		}
+
+		server->request = (unsigned long) number;
+		server->request_status = 1;
+
+		// wait for response
+		while(server->request_status == 1);
+
+		// if accepted
+		if(server->request_status == 0){
+			int slot = (int) server->request;
+			numbers[slot] = number;
+			slotsUsed[slot] = 1;
+
+
+
+		// if rejected
+		}else if(server->request_status == 2){
+			server->request_status = 0;
+			printf("No slots available, try again after another request finishes");
+		}
 
 	}
 
@@ -125,8 +154,8 @@ void* updateProgressThreadRunnable(void *vargp){
 
 		// compute progress string
 		char progressStr[256];
-		server->request++;
-		sprintf(progressStr, "%li", server->request);
+		counter++;
+		sprintf(progressStr, "%i", (int) counter);
 
 		// insert progress above user input
 		// save, move 1 up, move to col 1, clear line, string, restore pos
@@ -155,7 +184,7 @@ void* updateResultsThreadRunnable(void* vargp){
 		for(int i = 0; i < 10; i++){
 
 			// for each requiest currently processesed
-			if(numbers[i] >= 0){
+			if(slotsUsed[i]){
 
 				// if new result is found
 				if(server->result_status[i] == 1){
@@ -164,7 +193,7 @@ void* updateResultsThreadRunnable(void* vargp){
 					server->result_status[i] = 0;
 
 					char str[256];
-					sprintf(str, "Factor for %lli: %li", numbers[i], result);
+					sprintf(str, "Factor for %lu: %lu", numbers[i], result);
 					printAbove(str);
 
 
@@ -172,11 +201,11 @@ void* updateResultsThreadRunnable(void* vargp){
 				}else if(server->result_status[i] == 2){
 
 					char str[256];
-					sprintf(str, "Query for %lli complete", numbers[i]);
+					sprintf(str, "Query for %lu complete", numbers[i]);
 					printAbove(str);
 
 					server->result_status[i] = 0;
-					numbers[i] = -1;
+					slotsUsed[i] = 0;
 					
 				}
 			}

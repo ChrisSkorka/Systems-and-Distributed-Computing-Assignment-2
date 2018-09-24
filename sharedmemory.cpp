@@ -18,6 +18,7 @@
 
 // GLOBALS /////////////////////////////////////////////////////////////////////
 #define SHMSZ 27
+
 // PROTOTYPES //////////////////////////////////////////////////////////////////
 Memory* getSharedMemory();
 void initializeSharedMemory(Memory* sharedmem);
@@ -65,7 +66,7 @@ void initializeSharedMemory(Memory* sharedmem){
 	sharedmem->request = 0;
 	sharedmem->request_status = 0;
 	
-	for(int i = 0; i < 10; i++){
+	for(int i = 0; i < SLOT_COUNT; i++){
 		sharedmem->result[i] = 0;
 		sharedmem->result_status[i] = 0;
 		sharedmem->progress[i] = 0;

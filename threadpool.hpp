@@ -11,6 +11,7 @@
 
 // INCLUDES ////////////////////////////////////////////////////////////////////
 #include <pthread.h>
+#include "semaphore.hpp"
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
 // Work: represents work to be done by one thread
@@ -28,12 +29,15 @@ struct Job {
 struct Request {
 	Job jobs[32];
 	int jobsDoneCount;
+	pthread_mutex_t resultAccessMutex;
 };
 
 // JobQueue: queue (linked list) of jobs, has pointer to fist and last item
 typedef struct {
 	Job* first;
 	Job* last;
+	pthread_mutex_t accessMutex;
+	Semaphore hasJobs;
 } JobQueue;
 
 // Thread: a thread in the tread pool

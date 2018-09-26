@@ -121,6 +121,8 @@ void initJobQueue(){
 
 	jobQueue.first = NULL;
 	jobQueue.last = NULL;
+	pthread_mutex_init(&jobQueue.accessMutex, NULL);
+	// jobQueue.hasJobs = new Semaphore(LOCKED);
 
 }
 
@@ -131,6 +133,8 @@ void initJobQueue(){
 // -----------------------------------------------------------------------------
 void jobQueuePush(Job* job){
 	
+	pthread_mutex_lock(&jobQueue.accessMutex);
+
 	job->next = NULL;
 
 	// add to empty queue
@@ -147,6 +151,10 @@ void jobQueuePush(Job* job){
 
 	}
 
+	jobQueue.hasJobs.post();
+
+	pthread_mutex_unlock(&jobQueue.accessMutex);
+
 }
 
 // -----------------------------------------------------------------------------
@@ -157,10 +165,21 @@ void jobQueuePush(Job* job){
 Job* jobQueuePull(){
 	
 	// TODO synchronise!
-	while(jobQueue.first == NULL);
+	// while(jobQueue.first == NULL);
+	jobQueue.hasJobs.wait();
+
+	pthread_mutex_lock(&jobQueue.accessMutex);
 
 	Job* job = jobQueue.first;
 	jobQueue.first = job->next;
+
+	// if last job in queue, TODO required?
+	if(job->next == NULL)
+		jobQueue.last = NULL;
+	else
+		jobQueue.hasJobs.post();
+	
+	pthread_mutex_unlock(&jobQueue.accessMutex);
 
 	return job;
 

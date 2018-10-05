@@ -138,7 +138,7 @@ int main(int argc, char** argv){
 // -----------------------------------------------------------------------------
 void printAbove(char* string){
 
-	printf("%s\n", string);
+	printf("\e[1A\e[1G\e[2K%s\n\n", string);
 
 }
 
@@ -153,9 +153,18 @@ void* updateProgressThreadRunnable(void *vargp){
 	while(1){
 
 		// compute progress string
-		char progressStr[256];
-		counter++;
-		sprintf(progressStr, "%i", (int) counter);
+		char progressStr[256] = "Progress: ";
+
+		// for each slot
+		for(int i = 0; i < SLOT_COUNT; i++){
+
+			// if slot is used by request/query
+			if(slotsUsed[i]){
+				int end = strlen(progressStr);
+				sprintf(&progressStr[end], "Query %i: %i%%, ", i+1, (int) server->progress[i]);
+			}
+		}
+		
 
 		// insert progress above user input
 		// save, move 1 up, move to col 1, clear line, string, restore pos

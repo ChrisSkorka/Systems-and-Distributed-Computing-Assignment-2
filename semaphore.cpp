@@ -20,18 +20,21 @@
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
 // -----------------------------------------------------------------------------
-// 
-// 
-// Parameters:	
-// Returns:		
+// constructor for semaphore used by job queue, initially locked
+// Parameters:	void
+// Returns:		void
 // -----------------------------------------------------------------------------
-
 Semaphore::Semaphore(){
     pthread_mutex_init(&mutex, NULL);
     pthread_cond_init(&condition, NULL);
     value = LOCKED;
 }
 
+// -----------------------------------------------------------------------------
+// waits for semaphore to unlock (non-busy wait)
+// Parameters:	void
+// Returns:		void
+// -----------------------------------------------------------------------------
 void Semaphore::wait(){
     pthread_mutex_lock(&mutex);
     while (value != UNLOCKED) {
@@ -41,6 +44,11 @@ void Semaphore::wait(){
     pthread_mutex_unlock(&mutex);
 }
 
+// -----------------------------------------------------------------------------
+// signals that the semaphore is unlocked
+// Parameters:	void
+// Returns:		void
+// -----------------------------------------------------------------------------
 void Semaphore::post(){
     pthread_mutex_lock(&mutex);
     value = UNLOCKED;

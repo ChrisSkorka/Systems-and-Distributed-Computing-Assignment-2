@@ -5,30 +5,13 @@ Assignment 2 for Systems and Distributing computing, client/server program to ex
 
 ```
 {
-	request: unsigned long,
-	request_status: char,
+	query: unsigned long,
+	query_status: char,
 	result: unsigned long[10],
 	result_status: char[10],
 	progress: char[10],
 }
 ```
-
-### request
-Client: number to be factorised
-Server: 
-
-### request_status
-
-
-### result[10]
-
-
-### result_status[10]
-
-
-### progress[10]
-Server: overall proress of each request
-
 
 ## Client Server Communication
 

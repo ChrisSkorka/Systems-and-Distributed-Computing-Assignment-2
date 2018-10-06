@@ -31,13 +31,6 @@ Job* jobQueuePull();
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
 // -----------------------------------------------------------------------------
-// 
-// 
-// Parameters:	
-// Returns:		
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
 // starts the specified number of threads, should be called after initializing
 // the job queue
 // Parameters:	size: int					number of thread to start
@@ -178,6 +171,8 @@ Job* jobQueuePull(){
 		jobQueue.last = NULL;
 	else
 		jobQueue.hasJobs.post();
+
+	job->next = NULL;
 	
 	pthread_mutex_unlock(&jobQueue.accessMutex);
 

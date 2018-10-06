@@ -199,8 +199,10 @@ void updateProgress(){
 			progress /= batchJob[i].state;
 			client->progress[i] = (char) progress;
 
-			// if batchJob is complete, clear batchJob inform client
+			// if batch job is complete, clear batchJob and inform client
 			if(progress == 100){
+
+				printf("Finished query: %lu\n", batchJob[i].jobs[0].number);
 				
 				// wait for client to read last factor
 				while(client->result_status[i]);
@@ -281,7 +283,7 @@ void generateTestBatchJob(BatchJob* batchJob, int slot){
 // Returns:		void
 // -----------------------------------------------------------------------------
 void factorise(Job* job){
-	printf("A\n");
+	printf("processing %lu\n", job->number);
 
 	// local numbers
 	unsigned long number = job->number;
@@ -297,8 +299,9 @@ void factorise(Job* job){
 		upper = lower + 9;
 	}
 
-	for(unsigned long i = lower; i <= upper; i++){
-		printf("B\n");
+	// for each number in search space
+	for(unsigned long i = lower; i <= upper && client->active; i++){
+		// printf("%lu %lu\n", number, i);
 
 		// if test mode return number and insert random delay
 		if(batchJob->state == BATCHJOB_TEST){
@@ -310,12 +313,12 @@ void factorise(Job* job){
 		// if factor found
 		}else if(number % i == 0){
 			// write factor to slot
-			printf("C\n");
 			returnResult(batchJob, i);
 		}
 
 		// update progress
-		job->progress = (char) (100 * (i - lower) / (upper - lower));
+		job->progress = (char) (100 * (i - lower + 1) / (upper - lower + 1));
+
 	}
 
 }

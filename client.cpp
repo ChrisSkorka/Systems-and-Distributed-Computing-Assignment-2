@@ -13,18 +13,21 @@
 #include <string.h>
 #include <pthread.h>
 #include <time.h>
+#include <sys/time.h>
 #include <signal.h>
 #include "sharedmemory.hpp"
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
-// typedef enum { false, true } bool;
 
 // GLOBALS /////////////////////////////////////////////////////////////////////
 Memory* server;
+char progressStr[512];
+int processingUserInput = 0;
+
 unsigned long numbers[SLOT_COUNT] = {0};
 char slotsUsed[SLOT_COUNT] = {0};
-char counter = 0;
-char progressStr[512];
+struct timeval startTime[SLOT_COUNT];
+
 
 // PROTOTYPES //////////////////////////////////////////////////////////////////
 int main(int argc, char** argv);
@@ -39,13 +42,6 @@ void signalHandler(int signal);
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
 // -----------------------------------------------------------------------------
-// 
-// 
-// Parameters:	
-// Returns:		
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
 // main client, manages all client related tasks
 // 
 // Parameters:	cmd arguments
@@ -53,6 +49,7 @@ void signalHandler(int signal);
 // -----------------------------------------------------------------------------
 int main(int argc, char** argv){
 	printf("Client\n");
+	printf("Enter 32-bit numbers (up to 10 at a time)\n");
 
 	// register signal handler
 	signal(SIGINT, signalHandler);
@@ -63,15 +60,6 @@ int main(int argc, char** argv){
 	// buffer for std input
 	char cmd_buffer[256] = "";
 
-	// querry for input
-	while(strcmp(cmd_buffer, "q") == 0){
-		// get next command
-		printf("> ");
-		scanf("%s", cmd_buffer);
-	}
-
-	printf("Progess\n");
-
 	// start update progress and results thread
 	// setup arguments and start
     pthread_t* updateProgressThread = (pthread_t*) calloc(1, sizeof(pthread_t));
@@ -81,13 +69,18 @@ int main(int argc, char** argv){
 	pthread_create(updateProgressThread, updateProgressThreadAttributes, &updateProgressThreadRunnable, (void *) NULL);
 	pthread_create(updateResultsThread, updateResultsThreadAttributes, &updateResultsThreadRunnable, (void *) NULL);
 
-	printf("> ");
-
 	// query for input loop
 	while(server->active){
 
+		// wait for query
+		processingUserInput = 0;
+		char c = getchar();
+		processingUserInput = 1;
+
 		// query
+		printf("\e[1G\e[2K> ");
 		scanf("%s", cmd_buffer);
+		getchar();
 
 		// if q quit
 		if(strcmp(cmd_buffer, "q") == 0)
@@ -95,7 +88,7 @@ int main(int argc, char** argv){
 
 		// move progress line
 		// save, move left, move 1 up, clear input, move 1 up, clear progress, write command, restore, write chammand promt
-		printf("\e[s\e[1G\e[1A\e[2K\e[1A\e[2K> %s\e[u> ", cmd_buffer);
+		// printf("\e[s\e[1G\e[1A\e[2K\e[1A\e[2K> %s\e[u> ", cmd_buffer);
 
 		// send request
 
@@ -124,18 +117,23 @@ int main(int argc, char** argv){
 			if(number == 0){
 
 				int slot = (int) server->query;
-				numbers[slot] = number;
+				numbers[slot + 0] = number;
 				numbers[slot + 1] = number;
 				numbers[slot + 2] = number;
-				slotsUsed[slot] = 1;
+				slotsUsed[slot + 0] = 1;
 				slotsUsed[slot + 1] = 1;
 				slotsUsed[slot + 2] = 1;
+				gettimeofday(&startTime[slot + 0], NULL);
+				gettimeofday(&startTime[slot + 1], NULL);
+				gettimeofday(&startTime[slot + 2], NULL);
 
 			// if normal query
 			}else{
 				int slot = (int) server->query;
 				numbers[slot] = number;
 				slotsUsed[slot] = 1;
+				gettimeofday(&startTime[slot], NULL);
+
 			}
 
 		}
@@ -167,8 +165,8 @@ int main(int argc, char** argv){
 // -----------------------------------------------------------------------------
 void printAbove(char* string){
 
-	printf("\n\e[2A\e[2K%s\n%s\n> ", string, progressStr);
-	fflush(stdout);
+	printf("\n\e[1A\e[2K%s\n%s", string, progressStr);
+	// fflush(stdout);
 
 }
 
@@ -181,7 +179,10 @@ void printAbove(char* string){
 void* updateProgressThreadRunnable(void *vargp){
 
 	while(server->active){
-		printProgress();
+
+		// if user inputs currently, dont update
+		if(!processingUserInput)
+			printProgress();
 
 		suspend(0, 500000000);
 	}
@@ -198,6 +199,12 @@ void* updateResultsThreadRunnable(void* vargp){
 
 	// infinite loop
 	while(server->active){
+
+		// if user inputs currently, dont update
+			if(processingUserInput){
+				suspend(0, 500000000);
+				continue;
+			}
 
 		// for each request possible
 		for(int i = 0; i < SLOT_COUNT; i++){
@@ -219,8 +226,18 @@ void* updateResultsThreadRunnable(void* vargp){
 				// if query has finished processing
 				}else if(server->result_status[i] == 2){
 
+					struct timeval endTime;
+					gettimeofday(&endTime, NULL);
+					
+					// calculate time taken for server to respond, end_time - start_time
+					double timeElapsed = 
+						(double)(endTime.tv_usec - 
+							startTime[i].tv_usec) / 1000 +
+						(double)(endTime.tv_sec - 
+							startTime[i].tv_sec) * 1000;
+
 					char str[256];
-					sprintf(str, "Query for %lu complete", numbers[i]);
+					sprintf(str, "Query for %lu complete in %fms", numbers[i], timeElapsed);
 					printAbove(str);
 
 					server->result_status[i] = 0;
@@ -230,10 +247,7 @@ void* updateResultsThreadRunnable(void* vargp){
 			}
 		}
 
-		// print progress
-		printProgress();
-
-		suspend(0, 1000000);
+		suspend(0, 100000);
 	}
 }
 
@@ -260,7 +274,7 @@ void printProgress(){
 
 			// concatinate strings
 			int end = strlen(progressStr);
-			sprintf(&progressStr[end], "Query %i: %i%% %s, ", numbers[i], (int) server->progress[i], progressBar);
+			sprintf(&progressStr[end], "Query %lu: %i%% %s, ", numbers[i], (int) server->progress[i], progressBar);
 		}
 	}
 	
@@ -268,7 +282,7 @@ void printProgress(){
 	// insert progress above user input
 	// save, move 1 up, move to col 1, clear line, string, restore pos
 	// printf("\e[s\e[1A\e[1G\e[2K%s\e[u", progressStr);
-	printf("\e[s\e[1A\e[1G\e[2K%s\e[u", progressStr);
+	printf("\e[1G\e[2K%s (press ENTER to input)", progressStr);
 	fflush(stdout);
 
 }

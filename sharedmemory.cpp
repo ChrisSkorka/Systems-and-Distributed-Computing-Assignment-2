@@ -26,13 +26,6 @@ void initializeSharedMemory(Memory* sharedmem);
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
 // -----------------------------------------------------------------------------
-// 
-// 
-// Parameters:	
-// Returns:		
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
 // gets the pointer to shared memory that contains the Memory struct, its used 
 // by the client and server to obtain a pointer to the same object
 // Parameters:	void
@@ -64,11 +57,11 @@ void initializeSharedMemory(Memory* sharedmem){
 	// initialize 
 	sharedmem->active = 1;
 	sharedmem->query = 0;
-	sharedmem->query_status = 0;
+	sharedmem->query_status = QUERY_EMPTY;
 	
 	for(int i = 0; i < SLOT_COUNT; i++){
 		sharedmem->result[i] = 0;
-		sharedmem->result_status[i] = 0;
+		sharedmem->result_status[i] = RESULT_EMPTY;
 		sharedmem->progress[i] = 0;
 	}
 

@@ -20,7 +20,6 @@ typedef enum {
 	BATCHJOB_TEST = 10 
 } BatchJobState;
 
-
 typedef struct Job Job;
 typedef struct BatchJob BatchJob;
 

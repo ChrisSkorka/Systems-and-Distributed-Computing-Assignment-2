@@ -12,12 +12,25 @@
 
 // GLOBALS//////////////////////////////////////////////////////////////////////
 #define SLOT_COUNT 10
+// typedef enum { false, true } bool;
+typedef enum { 
+	QUERY_EMPTY, 
+	QUERY_READY, 
+	QUERY_OUT_OF_SLOTS,
+	QUERY_TEST_NOT_ACCEPTED 
+} QueryStatus;
+
+typedef enum { 
+	RESULT_EMPTY, 
+	RESULT_READY, 
+	RESULT_COMPLETE 
+} ResultStatus;
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
 typedef struct{
 	int active;
-	unsigned long request;
-	char request_status;
+	unsigned long query;
+	char query_status;
 	unsigned long result[SLOT_COUNT];
 	char result_status[SLOT_COUNT];
 	char progress[SLOT_COUNT];

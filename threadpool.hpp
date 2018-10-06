@@ -14,21 +14,27 @@
 #include "semaphore.hpp"
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
-// Work: represents work to be done by one thread
+typedef enum { 
+	BATCHJOB_EMPTY = 0, 
+	BATCHJOB_QUERY = 32, 
+	BATCHJOB_TEST = 10 
+} BatchJobState;
+
+
 typedef struct Job Job;
-typedef struct Request Request;
+typedef struct BatchJob BatchJob;
 
 struct Job {
 	unsigned long number;		// the number to be factorised
-	int slot;					// the slot of this task
 	char progress;				// the progress this job has made
-	Request* request;			// the request this job is part of
+	BatchJob* batchJob;			// the request this job is part of
 	Job* next;					// next job in queue / linked list
 };
 
-struct Request {
+struct BatchJob {
+	int state;
 	Job jobs[32];
-	int jobsDoneCount;
+	int slot;
 	pthread_mutex_t resultAccessMutex;
 };
 

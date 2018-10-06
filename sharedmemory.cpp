@@ -63,8 +63,8 @@ void initializeSharedMemory(Memory* sharedmem){
 
 	// initialize 
 	sharedmem->active = 1;
-	sharedmem->request = 0;
-	sharedmem->request_status = 0;
+	sharedmem->query = 0;
+	sharedmem->query_status = 0;
 	
 	for(int i = 0; i < SLOT_COUNT; i++){
 		sharedmem->result[i] = 0;

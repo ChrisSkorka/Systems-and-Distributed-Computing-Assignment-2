@@ -12,6 +12,7 @@
 #include <string.h>
 #include <queue>
 #include <pthread.h>
+#include <signal.h>
 #include "sharedmemory.hpp"
 #include "threadpool.hpp"
 
@@ -20,15 +21,21 @@
 // GLOBALS /////////////////////////////////////////////////////////////////////
 Memory* client;						// shared memory to communicate with client
 int threadPoolSize = 320;			// size of the thread pool
-Request* requests[SLOT_COUNT] = {NULL};		// request struct
+BatchJob batchJob[SLOT_COUNT];		// batchJob struct
 
 // PROTOTYPES //////////////////////////////////////////////////////////////////
 int main(int argc, char** argv);
+void initializeBatchJobArray();
 void factorise(Job* job);
 void processClientCommunication();
-void checkRequests();
+void checkForQuery();
 void updateProgress();
-Request* generateRequest(unsigned long number, int slot);
+void generateBatchJob(BatchJob* batchJob, unsigned long number, int slot);
+void generateTestBatchJob(BatchJob* batchJob, int slot);
+void returnResult(BatchJob* batchJob, unsigned long result);
+void suspend(int seconds, long nanoSeconds);
+void shutdown();
+void signalHandler(int s);
 
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
@@ -61,6 +68,9 @@ int main(int argc, char** argv){
 	client = getSharedMemory();
 	initializeSharedMemory(client);
 
+	// init batchJob array
+	initializeBatchJobArray();
+
 	// initialize thread pool
 	initJobQueue();
 	initThreadPool(threadPoolSize, &factorise);
@@ -69,33 +79,51 @@ int main(int argc, char** argv){
 }
 
 // -----------------------------------------------------------------------------
-// process client communication, processes new requests and updates progresses
+// initializes the batchJob array (sets state to empty and init mutes)
+// Parameters:	void
+// Returns:		void
+// -----------------------------------------------------------------------------
+void initializeBatchJobArray(){
+
+	for(int i = 0; i < SLOT_COUNT; i++){
+
+		batchJob[i].state = BATCHJOB_EMPTY;
+		pthread_mutex_init(&batchJob[i].resultAccessMutex, NULL);
+
+	}
+}
+
+// -----------------------------------------------------------------------------
+// process client communication, processes new batchJobs and updates progresses
 // Parameters:	void
 // Returns:		void
 // -----------------------------------------------------------------------------
 void processClientCommunication(){
 
 	while(client->active){
-		checkRequests();
+		checkForQuery();
 		updateProgress();
+		suspend(0, 10000000);
 	}
+
+	shutdown();
 
 }
 
 // -----------------------------------------------------------------------------
-// listens for requests and adds them to the job queue
+// listens for batchJobs and adds them to the job queue
 // Parameters:	void
 // Returns:		void
 // -----------------------------------------------------------------------------
-void checkRequests(){
+void checkForQuery(){
 
-	// wait for request
-	if(client->request_status == 1 && client->active){
+	// wait for batchJob
+	if(client->query_status == QUERY_READY){
 
 		// find slot, searches backwards, if no slot found slot = -1
 		int slot = 9;
 		for(;slot >= 0; slot--){
-			if(!requests[slot]){
+			if(!batchJob[slot].state){
 				break;
 			}
 		}
@@ -103,80 +131,108 @@ void checkRequests(){
 		// if run out of slots abort
 		if(slot < 0){
 			printf("run out of slots\n");
-			client->request_status = 2;
+			client->query_status = QUERY_OUT_OF_SLOTS;
 			return;
 		}
 
 		// read number, and return slot
-		unsigned long number = client->request;
-		client->request = slot;
-		client->request_status = 0;
+		unsigned long number = client->query;
 
-		printf("Request %lu\n", number);
+		// if test but batchJobs are currently being processed
+		if(number == 0){
+			for(int i = 0; i < SLOT_COUNT; i++){
+				if(batchJob[i].state){
+					printf("cannot run test whilst processing queries\n");
+					client->query_status = QUERY_TEST_NOT_ACCEPTED;
+					return;
+				}
+			}
+		}
 
-		requests[slot] = generateRequest(number, slot);
+		// if test query
+		if(number == 0){
+
+			client->query = 0;
+			client->query_status = QUERY_EMPTY;
+
+			printf("Test mode\n");
+
+			generateTestBatchJob(&batchJob[0], 0);
+			generateTestBatchJob(&batchJob[1], 1);
+			generateTestBatchJob(&batchJob[2], 2);
+
+		// if normal query
+		}else{
+
+			client->query = slot;
+			client->query_status = QUERY_EMPTY;
+
+			printf("Query: %lu\n", number);
+
+			generateBatchJob(&batchJob[slot], number, slot);
+
+		}
 
 	}
 }
 
 // -----------------------------------------------------------------------------
-// updates the overall progress of each request, if a job has finished, inform
-// the client and clear request
+// updates the overall progress of each batchJob, if a job has finished, inform
+// the client and clear batchJob
 // Parameters:	void
 // Returns:		void
 // -----------------------------------------------------------------------------
 void updateProgress(){
 
+	// for each slot
 	for(int i = 0; i < SLOT_COUNT; i++){
-		if(requests[i]){
+
+		// of batch job struct is currently processing
+		if(batchJob[i].state){
 
 			// sum all pgrogress
 			int progress = 0;
-			for(int j = 0; j < 32; j++)
-				progress += requests[i]->jobs[j].progress;
+			for(int j = 0; j < batchJob[i].state; j++)
+				progress += batchJob[i].jobs[j].progress;
 
 			// calculate average and send to client
-			progress /= 32;
+			progress /= batchJob[i].state;
 			client->progress[i] = (char) progress;
 
-			// if request is complete, clear request inform client
+			// if batchJob is complete, clear batchJob inform client
 			if(progress == 100){
 				
 				// wait for client to read last factor
 				while(client->result_status[i]);
 
-				client->result_status[i] = 2;
-				requests[i] = NULL;
+				client->result_status[i] = RESULT_COMPLETE;
+				batchJob[i].state = BATCHJOB_EMPTY;
 			}
 		}
 	}
 }
 
 // -----------------------------------------------------------------------------
-// generates a request with the 32 jobs that will need to be done and adds these
+// generates a batchJob with the 32 jobs that will need to be done and adds these
 // jobs to the job queue
-// Parameters:	number: unsighed long				number to be processed
+// Parameters:	batchJob: BatchJob*					batchJob struct to use
+//				number: unsighed long				number to be processed
 //				slot: int							slot to write results to
 // Returns:		void
 // -----------------------------------------------------------------------------
-Request* generateRequest(unsigned long number, int slot){
+void generateBatchJob(BatchJob* batchJob, unsigned long number, int slot){
 
-	Request* request = (Request*) malloc(sizeof(Request));
-
-	request->jobsDoneCount = 0;
+	batchJob->state = BATCHJOB_QUERY;
+	batchJob->slot = slot;
 
 	// for each rotation
 	for(int i = 0; i < 32; i++){
 
 		// new job item
 		// Job* job = (Job*) malloc(sizeof(Job));
-		request->jobs[i].request = request;
-		request->jobs[i].number = number;
-		request->jobs[i].slot = slot;
-		request->jobs[i].progress = 0;
-
-		// add job to request
-		// request->jobs[i] = job;
+		batchJob->jobs[i].batchJob = batchJob;
+		batchJob->jobs[i].number = number;
+		batchJob->jobs[i].progress = 0;
 
 		// rotate number by 1
 		unsigned long n = number;
@@ -187,9 +243,35 @@ Request* generateRequest(unsigned long number, int slot){
 
 	// add all jobs onto the job queue
 	for(int i = 0; i < 32; i++)
-		jobQueuePush(&request->jobs[i]);
+		jobQueuePush(&batchJob->jobs[i]);
 
-	return request;
+}
+
+// -----------------------------------------------------------------------------
+// generates a test batchJob with the 10 test jobs that will need to be done and
+// adds these jobs to the job queue
+// Parameters:	batchJob: BatchJob*					batchJob struct to use
+//				slot: int							slot to write results to
+// Returns:		void
+// -----------------------------------------------------------------------------
+void generateTestBatchJob(BatchJob* batchJob, int slot){
+
+	batchJob->state = BATCHJOB_TEST;
+	batchJob->slot = slot;
+
+	// test job
+	for(int i = 0; i < 10; i++){
+
+		// new job item
+		batchJob->jobs[i].batchJob = batchJob;
+		batchJob->jobs[i].number = i * 10;
+		batchJob->jobs[i].progress = 0;
+
+	}
+
+	// add all jobs onto the job queue
+	for(int i = 0; i < 10; i++)
+		jobQueuePush(&batchJob->jobs[i]);
 
 }
 
@@ -199,32 +281,105 @@ Request* generateRequest(unsigned long number, int slot){
 // Returns:		void
 // -----------------------------------------------------------------------------
 void factorise(Job* job){
+	printf("A\n");
 
 	// local numbers
 	unsigned long number = job->number;
-	int slot = job->slot;
-	Request* request = job->request;
+	BatchJob* batchJob = job->batchJob;
 
-	for(unsigned long i = 1; i <= number; i++){
+	// search space
+	unsigned long lower = 1;
+	unsigned long upper = number;
+
+	// if test mode change search space
+	if(batchJob->state == BATCHJOB_TEST){
+		lower = number;
+		upper = lower + 9;
+	}
+
+	for(unsigned long i = lower; i <= upper; i++){
+		printf("B\n");
+
+		// if test mode return number and insert random delay
+		if(batchJob->state == BATCHJOB_TEST){
+			returnResult(batchJob, i);
+			
+			// random delay 10ms - 100ms
+			suspend(0, 1000000 * (rand() % 90 + 10));
 
 		// if factor found
-		if(number % i == 0){
-
+		}else if(number % i == 0){
 			// write factor to slot
-			pthread_mutex_lock(&request->resultAccessMutex); 
-
-			while(client->result_status[slot]);
-			client->result[slot] = i;
-			client->result_status[slot] = 1;
-
-			pthread_mutex_unlock(&request->resultAccessMutex); 
-
+			printf("C\n");
+			returnResult(batchJob, i);
 		}
 
 		// update progress
-		job->progress = (char) (100 * i / number);
+		job->progress = (char) (100 * (i - lower) / (upper - lower));
 	}
 
+}
+
+// -----------------------------------------------------------------------------
+// returns a result of a query to the client in the appropriate slot
+// Parameters:	batchJob: BatchJob*			The batch hob the result belongs to
+//				result:	unsigned long		the result
+// Returns:		void
+// -----------------------------------------------------------------------------
+void returnResult(BatchJob* batchJob, unsigned long result){
+
+	int slot = batchJob->slot;
+
+	// write factor to slot
+	pthread_mutex_lock(&batchJob->resultAccessMutex); 
+
+	while(client->result_status[slot]);
+	client->result[slot] = result;
+	client->result_status[slot] = RESULT_READY;
+
+	pthread_mutex_unlock(&batchJob->resultAccessMutex); 
+
+}
+
+// -----------------------------------------------------------------------------
+// sleeps for the specified amount of time
+// Parameters:	seconds: int seconds			seconds to sleep
+//				naneoSeconds: long				additional nano seconds to sleep
+// Returns:		void
+// -----------------------------------------------------------------------------
+void suspend(int seconds, long nanoSeconds){
+    struct timespec ts;
+    ts.tv_sec = seconds;
+    ts.tv_nsec = nanoSeconds;
+	nanosleep(&ts, NULL);
+}
+
+// -----------------------------------------------------------------------------
+// shuts down the server and disables active flag so the client shuts down too
+// Parameters:	void
+// Returns:		void
+// -----------------------------------------------------------------------------
+void shutdown(){
+
+	printf("Shutting down...\n");
+
+	// signal to the threads and server to shutdown
+	client->active = 0;
+
+}
+
+// -----------------------------------------------------------------------------
+// signal handler for clean shutdown, if shuwdown requested twice, force exit
+// Parameters:	void
+// Returns:		void
+// -----------------------------------------------------------------------------
+void signalHandler(int s){
+	if(s == SIGINT){
+		if(client->active == 0)
+			exit(1);
+		else
+			shutdown();
+	}
 }
 
 // /////////////////////////////////////////////////////////////////////////////

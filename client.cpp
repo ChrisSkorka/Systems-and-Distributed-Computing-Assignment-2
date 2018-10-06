@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <time.h>
+#include <signal.h>
 #include "sharedmemory.hpp"
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
@@ -22,12 +24,17 @@ Memory* server;
 unsigned long numbers[SLOT_COUNT] = {0};
 char slotsUsed[SLOT_COUNT] = {0};
 char counter = 0;
+char progressStr[512];
 
 // PROTOTYPES //////////////////////////////////////////////////////////////////
 int main(int argc, char** argv);
 void printAbove(char* string);
 void* updateProgressThreadRunnable(void *vargp);
 void* updateResultsThreadRunnable(void* vargp);
+void printProgress();
+void shutdown();
+void suspend(int seconds, long nanoSeconds);
+void signalHandler(int signal);
 
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
@@ -46,6 +53,9 @@ void* updateResultsThreadRunnable(void* vargp);
 // -----------------------------------------------------------------------------
 int main(int argc, char** argv){
 	printf("Client\n");
+
+	// register signal handler
+	signal(SIGINT, signalHandler);
 
 	// struct shared with server for communication
 	server = getSharedMemory();
@@ -74,12 +84,14 @@ int main(int argc, char** argv){
 	printf("> ");
 
 	// query for input loop
-	while(strcmp(cmd_buffer, "q") != 0){
+	while(server->active){
 
 		// query
-		// cmd_buffer = getpass("Press ENTER to input a number");
-		// printf("> %s", cmd_buffer);
 		scanf("%s", cmd_buffer);
+
+		// if q quit
+		if(strcmp(cmd_buffer, "q") == 0)
+			break;
 
 		// move progress line
 		// save, move left, move 1 up, clear input, move 1 up, clear progress, write command, restore, write chammand promt
@@ -92,42 +104,59 @@ int main(int argc, char** argv){
 		max <<= 32;
 		sscanf(cmd_buffer, "%lli", &number);
 
+		// check if the number is in the range
 		if(number < 0 || number >= max){
-			printf("Invalid input ");
+			printAbove("Invalid input");
 			continue;
 		}
 
-		server->request = (unsigned long) number;
-		server->request_status = 1;
+		// send number to server
+		server->query = (unsigned long) number;
+		server->query_status = QUERY_READY;
 
 		// wait for response
-		while(server->request_status == 1);
+		while(server->query_status == QUERY_READY && server->active);
 
 		// if accepted
-		if(server->request_status == 0){
-			int slot = (int) server->request;
-			numbers[slot] = number;
-			slotsUsed[slot] = 1;
+		if(server->query_status == QUERY_EMPTY){
 
+			// if test mode
+			if(number == 0){
 
+				int slot = (int) server->query;
+				numbers[slot] = number;
+				numbers[slot + 1] = number;
+				numbers[slot + 2] = number;
+				slotsUsed[slot] = 1;
+				slotsUsed[slot + 1] = 1;
+				slotsUsed[slot + 2] = 1;
 
-		// if rejected
-		}else if(server->request_status == 2){
-			server->request_status = 0;
-			printf("No slots available, try again after another request finishes");
+			// if normal query
+			}else{
+				int slot = (int) server->query;
+				numbers[slot] = number;
+				slotsUsed[slot] = 1;
+			}
+
+		}
+
+		// if no slots available
+		else if(server->query_status == QUERY_OUT_OF_SLOTS){
+			server->query_status = QUERY_EMPTY;
+			printAbove("No slots available, wait for a query finish");
+		}
+
+		// if test mode cannot be run
+		else if(server->query_status == QUERY_TEST_NOT_ACCEPTED){
+			server->query_status = QUERY_EMPTY;
+			printAbove("Wait for existing queries to finish");
 		}
 
 	}
 
-	
-	
-
-	// sleep(5);
+	shutdown();
 
 	printf("\n");
-
-	// wait for thread to finish
-	// pthread_join(updateResultsThread, NULL);
 
 }
 
@@ -138,7 +167,8 @@ int main(int argc, char** argv){
 // -----------------------------------------------------------------------------
 void printAbove(char* string){
 
-	printf("\e[1A\e[1G\e[2K%s\n\n", string);
+	printf("\n\e[2A\e[2K%s\n%s\n> ", string, progressStr);
+	fflush(stdout);
 
 }
 
@@ -150,30 +180,10 @@ void printAbove(char* string){
 // -----------------------------------------------------------------------------
 void* updateProgressThreadRunnable(void *vargp){
 
-	while(1){
+	while(server->active){
+		printProgress();
 
-		// compute progress string
-		char progressStr[256] = "Progress: ";
-
-		// for each slot
-		for(int i = 0; i < SLOT_COUNT; i++){
-
-			// if slot is used by request/query
-			if(slotsUsed[i]){
-				int end = strlen(progressStr);
-				sprintf(&progressStr[end], "Query %i: %i%%, ", i+1, (int) server->progress[i]);
-			}
-		}
-		
-
-		// insert progress above user input
-		// save, move 1 up, move to col 1, clear line, string, restore pos
-		// printf("\e[s\e[1A\e[1G\e[2K%s\e[u", progressStr);
-		printf("\e[s\e[1A\e[1G\e[2K%s\e[u", progressStr);
-		fflush(stdout);
-
-		sleep(1);
-
+		suspend(0, 500000000);
 	}
 
 }
@@ -187,10 +197,10 @@ void* updateProgressThreadRunnable(void *vargp){
 void* updateResultsThreadRunnable(void* vargp){
 
 	// infinite loop
-	while(true){
+	while(server->active){
 
 		// for each request possible
-		for(int i = 0; i < 10; i++){
+		for(int i = 0; i < SLOT_COUNT; i++){
 
 			// for each requiest currently processesed
 			if(slotsUsed[i]){
@@ -206,7 +216,7 @@ void* updateResultsThreadRunnable(void* vargp){
 					printAbove(str);
 
 
-				// if requiest has finished processing
+				// if query has finished processing
 				}else if(server->result_status[i] == 2){
 
 					char str[256];
@@ -219,6 +229,88 @@ void* updateResultsThreadRunnable(void* vargp){
 				}
 			}
 		}
+
+		// print progress
+		printProgress();
+
+		suspend(0, 1000000);
+	}
+}
+
+// -----------------------------------------------------------------------------
+// prints the progress of the server tasks
+// Parameters:	void
+// Returns:		void
+// -----------------------------------------------------------------------------
+void printProgress(){
+
+	// compute progress string
+	sprintf(progressStr, "Progress: ");
+
+	// for each slot
+	for(int i = 0; i < SLOT_COUNT; i++){
+
+		// if slot is used by request/query
+		if(slotsUsed[i]){
+
+			// generate progress bar
+			char progressBar[] = "__________";
+			for(int j = 0; j < (server->progress[i] + 5)  / 10; j++)
+				progressBar[j] = '#';
+
+			// concatinate strings
+			int end = strlen(progressStr);
+			sprintf(&progressStr[end], "Query %i: %i%% %s, ", numbers[i], (int) server->progress[i], progressBar);
+		}
+	}
+	
+
+	// insert progress above user input
+	// save, move 1 up, move to col 1, clear line, string, restore pos
+	// printf("\e[s\e[1A\e[1G\e[2K%s\e[u", progressStr);
+	printf("\e[s\e[1A\e[1G\e[2K%s\e[u", progressStr);
+	fflush(stdout);
+
+}
+
+// -----------------------------------------------------------------------------
+// sleeps for the specified amount of time
+// Parameters:	seconds: int seconds			seconds to sleep
+//				naneoSeconds: long				additional nano seconds to sleep
+// Returns:		void
+// -----------------------------------------------------------------------------
+void suspend(int seconds, long nanoSeconds){
+    struct timespec ts;
+    ts.tv_sec = seconds;
+    ts.tv_nsec = nanoSeconds;
+	nanosleep(&ts, NULL);
+}
+
+// -----------------------------------------------------------------------------
+// shuts down the client and disables active flag so the server shuts down too
+// Parameters:	void
+// Returns:		void
+// -----------------------------------------------------------------------------
+void shutdown(){
+
+	printf("Shutting down...\n");
+
+	// signal to the threads and server to shutdown
+	server->active = 0;
+
+}
+
+// -----------------------------------------------------------------------------
+// signal handler for clean shutdown, if shuwdown requested twice, force exit
+// Parameters:	void
+// Returns:		void
+// -----------------------------------------------------------------------------
+void signalHandler(int s){
+	if(s == SIGINT){
+		if(server->active == 0)
+			exit(1);
+		else
+			shutdown();
 	}
 }
 

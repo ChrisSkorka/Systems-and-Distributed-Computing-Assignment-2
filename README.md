@@ -1,10 +1,11 @@
 # Systems-and-Distributed-Computing-Assignment-2
-Assignment 2 for Systems and Distributing computing, client/server program to execute computationally expensive tasks on a multi threaded system
+Assignment 2 for Systems and Distributing computing, client/server program to execute computationally expensive tasks on a multi-threaded system
 
 ## Shared Memory Structure
 
 ```
 {
+	active: int,
 	query: unsigned long,
 	query_status: char,
 	result: unsigned long[10],
@@ -52,9 +53,8 @@ Assignment 2 for Systems and Distributing computing, client/server program to ex
 
 - Client print progress[]
 
-## User Input
+## User Input (press ENTER to begin input)
 
 - number: 32 bit ubsigned long number to be factorised
+- '0': test mode whilst there are no outstanding queries
 - 'q': quit the program
-
-## Output

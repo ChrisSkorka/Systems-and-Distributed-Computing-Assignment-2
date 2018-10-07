@@ -46,6 +46,9 @@ void signalHandler(int s);
 // -----------------------------------------------------------------------------
 int main(int argc, char** argv){
 	printf("Server\n");
+	
+	// register signal handler
+	signal(SIGINT, signalHandler);
 
 	// if given get thread pool size from cmd arguments
 	if(argc >= 2){

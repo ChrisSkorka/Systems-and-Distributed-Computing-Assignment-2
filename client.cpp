@@ -100,7 +100,7 @@ int main(int argc, char** argv){
 
 		// check if the number is in the range
 		if(number < 0 || number >= max){
-			printAbove("Invalid input");
+			printAbove((char*) "Invalid input");
 			continue;
 		}
 
@@ -142,13 +142,13 @@ int main(int argc, char** argv){
 		// if no slots available
 		else if(server->query_status == QUERY_OUT_OF_SLOTS){
 			server->query_status = QUERY_EMPTY;
-			printAbove("No slots available, wait for a query finish");
+			printAbove((char*) "No slots available, wait for a query finish");
 		}
 
 		// if test mode cannot be run
 		else if(server->query_status == QUERY_TEST_NOT_ACCEPTED){
 			server->query_status = QUERY_EMPTY;
-			printAbove("Wait for existing queries to finish");
+			printAbove((char*) "Wait for existing queries to finish");
 		}
 
 	}
@@ -308,7 +308,7 @@ void suspend(int seconds, long nanoSeconds){
 // -----------------------------------------------------------------------------
 void shutdown(){
 
-	printf("Shutting down...\n");
+	printf("\nShutting down... (press ENTER to exit input)\n");
 
 	// signal to the threads and server to shutdown
 	server->active = 0;

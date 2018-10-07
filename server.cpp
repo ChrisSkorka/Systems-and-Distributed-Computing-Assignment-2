@@ -13,8 +13,7 @@
 #include <queue>
 #include <pthread.h>
 #include <signal.h>
-#include "sharedmemory.hpp"
-#include "threadpool.hpp"
+#include "server.hpp"
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
 

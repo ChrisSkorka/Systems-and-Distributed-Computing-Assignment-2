@@ -20,8 +20,8 @@
 project: client server
 
 client: client.cpp client.hpp sharedmemory.cpp sharedmemory.hpp semaphore.cpp semaphore.hpp
-	gcc -o client client.cpp sharedmemory.cpp semaphore.cpp -lpthread -g
+	gcc -o client client.cpp sharedmemory.cpp semaphore.cpp -lpthread
 
 server: server.cpp server.hpp sharedmemory.cpp sharedmemory.hpp threadpool.cpp threadpool.hpp semaphore.cpp semaphore.hpp
-	gcc -o server server.cpp sharedmemory.cpp threadpool.cpp semaphore.cpp -lpthread -g
+	gcc -o server server.cpp sharedmemory.cpp threadpool.cpp semaphore.cpp -lpthread
 	

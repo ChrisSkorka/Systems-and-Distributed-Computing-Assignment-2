@@ -12,28 +12,31 @@
 
 // GLOBALS//////////////////////////////////////////////////////////////////////
 #define SLOT_COUNT 10
-// typedef enum { false, true } bool;
-typedef enum { 
-	QUERY_EMPTY, 
-	QUERY_READY, 
-	QUERY_OUT_OF_SLOTS,
-	QUERY_TEST_NOT_ACCEPTED 
-} QueryStatus;
-
-typedef enum { 
-	RESULT_EMPTY, 
-	RESULT_READY, 
-	RESULT_COMPLETE 
-} ResultStatus;
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
+// QueryStatus: values for Memory.query_status (see Memory)
+typedef enum { 
+	QUERY_EMPTY, 				// empty, ready for new query
+	QUERY_READY, 				// new query
+	QUERY_OUT_OF_SLOTS,			// query rejected, out of slots
+	QUERY_TEST_NOT_ACCEPTED 	// query rejected, test mode not available
+} QueryStatus;
+
+// ResultStatus: values for Memory.result_status[i] (see Memory)
+typedef enum { 
+	RESULT_EMPTY, 				// empty, ready for results
+	RESULT_READY, 				// new result ready
+	RESULT_COMPLETE 			// query is complete
+} ResultStatus;
+
+// Memory: shared memory for communcication between server and client
 typedef struct{
-	int active;
-	unsigned long query;
-	char query_status;
-	unsigned long result[SLOT_COUNT];
-	char result_status[SLOT_COUNT];
-	char progress[SLOT_COUNT];
+	int active;					// active state of the system
+	unsigned long query;		// query
+	char query_status;			// query status see QueryStatus
+	unsigned long result[SLOT_COUNT];	// results
+	char result_status[SLOT_COUNT];		// result status's see ResultStatus
+	char progress[SLOT_COUNT];			// query progress
 } Memory;
 
 // PROTOTYPES //////////////////////////////////////////////////////////////////

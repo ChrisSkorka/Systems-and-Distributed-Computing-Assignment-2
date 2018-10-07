@@ -12,10 +12,9 @@
 // INCLUDES ////////////////////////////////////////////////////////////////////
 #include <pthread.h>
 
-// TYPEDEFS ////////////////////////////////////////////////////////////////////
-typedef enum {UNLOCKED, LOCKED} States;
-
 // CLASS PROTOTYPES ////////////////////////////////////////////////////////////
+
+// Semaphore: standard semphore used by JobQueue
 class Semaphore{
 
     // VARIABLES ------------------------------------------
@@ -28,10 +27,25 @@ class Semaphore{
 
     // FUNCTIONS ------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // constructor for semaphore used by job queue, initially locked
+    // Parameters:	void
+    // Returns:		void
+    // -------------------------------------------------------------------------
     Semaphore();
 
+    // -------------------------------------------------------------------------
+    // waits for semaphore to unlock (non-busy wait)
+    // Parameters:	void
+    // Returns:		void
+    // -------------------------------------------------------------------------
     void wait();
 
+    // -------------------------------------------------------------------------
+    // signals that the semaphore is unlocked
+    // Parameters:	void
+    // Returns:		void
+    // -------------------------------------------------------------------------
     void post();
 
 };

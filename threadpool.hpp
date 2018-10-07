@@ -14,35 +14,38 @@
 #include "semaphore.hpp"
 
 // TYPEDEFS ////////////////////////////////////////////////////////////////////
-typedef enum { 
-	BATCHJOB_EMPTY = 0, 
-	BATCHJOB_QUERY = 32, 
-	BATCHJOB_TEST = 10 
-} BatchJobState;
-
 typedef struct Job Job;
 typedef struct BatchJob BatchJob;
 
+// BatchJobState: values for batchjob.state
+typedef enum { 
+	BATCHJOB_EMPTY = 0, 		// not in use
+	BATCHJOB_QUERY = 32, 		// in use for standard query
+	BATCHJOB_TEST = 10 			// in use for test query
+} BatchJobState;
+
+// Job: individual job to be done by one thread
 struct Job {
-	unsigned long number;		// the number to be factorised
-	char progress;				// the progress this job has made
-	BatchJob* batchJob;			// the request this job is part of
-	Job* next;					// next job in queue / linked list
+	unsigned long number;		// number to be factorised
+	char progress;				// progress this job has made
+	BatchJob* batchJob;			// batch job this job is part of
+	Job* next;					// next job in job queue / linked list
 };
 
+// BatchJob: holds all the jobs for one query and the slot to be used
 struct BatchJob {
-	int state;
-	Job jobs[32];
-	int slot;
-	pthread_mutex_t resultAccessMutex;
+	int state;					// state of job (see BatchJobState)
+	Job jobs[32];				// array of jobs
+	int slot;					// slot to write results and progress to
+	pthread_mutex_t resultAccessMutex;	// slot access mutex
 };
 
 // JobQueue: queue (linked list) of jobs, has pointer to fist and last item
 typedef struct {
-	Job* first;
-	Job* last;
-	pthread_mutex_t accessMutex;
-	Semaphore hasJobs;
+	Job* first;					// first item in queue
+	Job* last;					// last item in queue
+	pthread_mutex_t accessMutex;// access mutex
+	Semaphore hasJobs;			// semaphore to wait for jobs
 } JobQueue;
 
 // Thread: a thread in the tread pool

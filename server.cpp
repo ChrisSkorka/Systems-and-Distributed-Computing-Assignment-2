@@ -40,15 +40,7 @@ void signalHandler(int s);
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
 // -----------------------------------------------------------------------------
-// 
-// 
-// Parameters:	
-// Returns:		
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
 // main server 
-// 
 // Parameters:	cmd arguments
 // Returns:		int: return status
 // -----------------------------------------------------------------------------
@@ -116,6 +108,7 @@ void processClientCommunication(){
 // Returns:		void
 // -----------------------------------------------------------------------------
 void checkForQuery(){
+	// printf("checkForQuery()\n");
 
 	// wait for batchJob
 	if(client->query_status == QUERY_READY){
@@ -151,6 +144,7 @@ void checkForQuery(){
 
 		// if test query
 		if(number == 0){
+			// printf("if()\n");
 
 			client->query = 0;
 			client->query_status = QUERY_EMPTY;
@@ -160,6 +154,7 @@ void checkForQuery(){
 			generateTestBatchJob(&batchJob[0], 0);
 			generateTestBatchJob(&batchJob[1], 1);
 			generateTestBatchJob(&batchJob[2], 2);
+			// printf("if--\n");
 
 		// if normal query
 		}else{
@@ -174,6 +169,7 @@ void checkForQuery(){
 		}
 
 	}
+	// printf("checkForQuery--\n");
 }
 
 // -----------------------------------------------------------------------------
@@ -231,7 +227,6 @@ void generateBatchJob(BatchJob* batchJob, unsigned long number, int slot){
 	for(int i = 0; i < 32; i++){
 
 		// new job item
-		// Job* job = (Job*) malloc(sizeof(Job));
 		batchJob->jobs[i].batchJob = batchJob;
 		batchJob->jobs[i].number = number;
 		batchJob->jobs[i].progress = 0;
@@ -244,8 +239,11 @@ void generateBatchJob(BatchJob* batchJob, unsigned long number, int slot){
 	}
 
 	// add all jobs onto the job queue
-	for(int i = 0; i < 32; i++)
+	for(int i = 0; i < 32; i++){
+		// printf("for()\n");
 		jobQueuePush(&batchJob->jobs[i]);
+		// printf("for--\n");
+	}
 
 }
 
@@ -257,6 +255,7 @@ void generateBatchJob(BatchJob* batchJob, unsigned long number, int slot){
 // Returns:		void
 // -----------------------------------------------------------------------------
 void generateTestBatchJob(BatchJob* batchJob, int slot){
+	// printf("generateTestBatchJob()\n");
 
 	batchJob->state = BATCHJOB_TEST;
 	batchJob->slot = slot;
@@ -272,9 +271,13 @@ void generateTestBatchJob(BatchJob* batchJob, int slot){
 	}
 
 	// add all jobs onto the job queue
-	for(int i = 0; i < 10; i++)
+	for(int i = 0; i < 10; i++){
+		// printf("for()\n");
 		jobQueuePush(&batchJob->jobs[i]);
+		// printf("for--\n");
+	}
 
+	// printf("generateTestBatchJob--\n");
 }
 
 // -----------------------------------------------------------------------------
@@ -283,16 +286,16 @@ void generateTestBatchJob(BatchJob* batchJob, int slot){
 // Returns:		void
 // -----------------------------------------------------------------------------
 void factorise(Job* job){
-	printf("processing %lu\n", job->number);
+	// printf("factorise() %lu\n", job->number);
 
 	// local numbers
 	unsigned long number = job->number;
 	BatchJob* batchJob = job->batchJob;
-
+	
 	// search space
 	unsigned long lower = 1;
 	unsigned long upper = number;
-
+	
 	// if test mode change search space
 	if(batchJob->state == BATCHJOB_TEST){
 		lower = number;
@@ -301,7 +304,7 @@ void factorise(Job* job){
 
 	// for each number in search space
 	for(unsigned long i = lower; i <= upper && client->active; i++){
-		// printf("%lu %lu\n", number, i);
+		// printf("doing %lu\n", job->number);
 
 		// if test mode return number and insert random delay
 		if(batchJob->state == BATCHJOB_TEST){
@@ -318,9 +321,10 @@ void factorise(Job* job){
 
 		// update progress
 		job->progress = (char) (100 * (i - lower + 1) / (upper - lower + 1));
-
+		// printf("done %lu\n", job->number);
 	}
 
+	// printf("factorise-- %lu\n", job->number);
 }
 
 // -----------------------------------------------------------------------------
@@ -330,6 +334,7 @@ void factorise(Job* job){
 // Returns:		void
 // -----------------------------------------------------------------------------
 void returnResult(BatchJob* batchJob, unsigned long result){
+	// printf("returnResult()\n");
 
 	int slot = batchJob->slot;
 
@@ -342,6 +347,7 @@ void returnResult(BatchJob* batchJob, unsigned long result){
 
 	pthread_mutex_unlock(&batchJob->resultAccessMutex); 
 
+	// printf("returnResult--\n");
 }
 
 // -----------------------------------------------------------------------------

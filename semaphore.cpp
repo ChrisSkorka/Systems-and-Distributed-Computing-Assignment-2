@@ -13,10 +13,6 @@
 
 #include "semaphore.hpp"
 
-// GLOBALS /////////////////////////////////////////////////////////////////////
-
-// PROTOTYPES //////////////////////////////////////////////////////////////////
-
 // FUNCTIONS ///////////////////////////////////////////////////////////////////
 
 // -----------------------------------------------------------------------------
@@ -25,9 +21,11 @@
 // Returns:		void
 // -----------------------------------------------------------------------------
 Semaphore::Semaphore(){
+
     pthread_mutex_init(&mutex, NULL);
     pthread_cond_init(&condition, NULL);
-    value = LOCKED;
+    value = 0;
+
 }
 
 // -----------------------------------------------------------------------------
@@ -36,11 +34,15 @@ Semaphore::Semaphore(){
 // Returns:		void
 // -----------------------------------------------------------------------------
 void Semaphore::wait(){
+
     pthread_mutex_lock(&mutex);
-    while (value != UNLOCKED) {
+    
+    // if no job available wait for signal
+    while(value == 0) {
         pthread_cond_wait(&condition, &mutex);
     }
-    value = LOCKED;
+    value -= 1;
+
     pthread_mutex_unlock(&mutex);
 }
 
@@ -51,9 +53,14 @@ void Semaphore::wait(){
 // -----------------------------------------------------------------------------
 void Semaphore::post(){
     pthread_mutex_lock(&mutex);
-    value = UNLOCKED;
+
+    value = value + 1;
+
+    // signal waiting thread
     pthread_cond_signal(&condition);
+
     pthread_mutex_unlock(&mutex);
+
 }
 
 // /////////////////////////////////////////////////////////////////////////////

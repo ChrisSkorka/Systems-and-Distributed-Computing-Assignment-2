@@ -51,10 +51,6 @@ void initThreadPool(int size, void (*jobWorker)(Job*)){
 	for(int i = 0; i < size; i++){
 		threads[i] = initThread(i);
 	}
-
-	// for(int i = 0; i < size; i++)
-	// 	printf("%i %lu\n", i, (unsigned long) threads[i]);
-	// fflush(stdout);
 }
 
 // -----------------------------------------------------------------------------
@@ -72,7 +68,6 @@ Thread* initThread(int id){
 
 	// init struct
 	thread->id = id;
-	// printf("%i written\n", thread->id);
 
 	// start thread and add data to thread struct 
 	pthread_create(&thread->pthread, NULL, &threadLoop, thread);
@@ -89,7 +84,6 @@ Thread* initThread(int id){
 void* threadLoop(void *vargp){
 
 	Thread* thread = (Thread*)vargp;
-	// sleep(1);
 
 	while(running){
 		sleep(1);
@@ -115,7 +109,6 @@ void initJobQueue(){
 	jobQueue.first = NULL;
 	jobQueue.last = NULL;
 	pthread_mutex_init(&jobQueue.accessMutex, NULL);
-	// jobQueue.hasJobs = new Semaphore(LOCKED);
 
 }
 
@@ -144,6 +137,7 @@ void jobQueuePush(Job* job){
 
 	}
 
+	// signal new job is available
 	jobQueue.hasJobs.post();
 
 	pthread_mutex_unlock(&jobQueue.accessMutex);
@@ -157,20 +151,18 @@ void jobQueuePush(Job* job){
 // -----------------------------------------------------------------------------
 Job* jobQueuePull(){
 	
-	// TODO synchronise!
-	// while(jobQueue.first == NULL);
+	// wait for job to be available
 	jobQueue.hasJobs.wait();
 
 	pthread_mutex_lock(&jobQueue.accessMutex);
 
+	// darw first job
 	Job* job = jobQueue.first;
 	jobQueue.first = job->next;
 
-	// if last job in queue, TODO required?
+	// if last job in queue, clean queue end?
 	if(job->next == NULL)
 		jobQueue.last = NULL;
-	else
-		jobQueue.hasJobs.post();
 
 	job->next = NULL;
 	

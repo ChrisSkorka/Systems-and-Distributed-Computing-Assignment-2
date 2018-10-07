@@ -17,7 +17,6 @@
 #include "sharedmemory.hpp"
 
 // GLOBALS /////////////////////////////////////////////////////////////////////
-#define SHMSZ 27
 
 // PROTOTYPES //////////////////////////////////////////////////////////////////
 Memory* getSharedMemory();
@@ -34,13 +33,21 @@ void initializeSharedMemory(Memory* sharedmem);
 Memory* getSharedMemory(){
 	// setup shared memory
     int shmid;
-    key_t key = 1234;
+    key_t key = 1235;
 	Memory* sharedmem;
 
-    if((shmid = shmget(key, SHMSZ, IPC_CREAT | 0666)) < 0)
+	// get id of shared memory
+	shmid = shmget(key, sizeof(Memory), IPC_CREAT | 0666);
+	
+	// failed to obtain shared memory
+    if(shmid < 0)
         return NULL;
 
-	if((void *)(sharedmem = (Memory*)shmat(shmid, NULL, 0)) == (void *) -1)
+	// attach to address space
+	sharedmem = (Memory*)shmat(shmid, NULL, 0);
+
+	// if failed to attach to address space
+	if((void *)sharedmem == (void *) -1)
 		return NULL;
 
 	return sharedmem;

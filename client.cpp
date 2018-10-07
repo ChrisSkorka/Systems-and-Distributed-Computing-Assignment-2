@@ -43,13 +43,15 @@ void signalHandler(int signal);
 
 // -----------------------------------------------------------------------------
 // main client, manages all client related tasks
-// 
 // Parameters:	cmd arguments
 // Returns:		int: return status
 // -----------------------------------------------------------------------------
 int main(int argc, char** argv){
 	printf("Client\n");
 	printf("Enter 32-bit numbers (up to 10 at a time)\n");
+	printf("Or '0' to begin test mode (whilst there are no queries)\n");
+	printf("Or 'q' to quit the system\n");
+	printf("before inputting any commands press enter to pause output\n");
 
 	// register signal handler
 	signal(SIGINT, signalHandler);
@@ -77,6 +79,10 @@ int main(int argc, char** argv){
 		char c = getchar();
 		processingUserInput = 1;
 
+		// if shutdown, exit
+		if(!server->active)
+			break;
+
 		// query
 		printf("\e[1G\e[2K> ");
 		scanf("%s", cmd_buffer);
@@ -86,12 +92,7 @@ int main(int argc, char** argv){
 		if(strcmp(cmd_buffer, "q") == 0)
 			break;
 
-		// move progress line
-		// save, move left, move 1 up, clear input, move 1 up, clear progress, write command, restore, write chammand promt
-		// printf("\e[s\e[1G\e[1A\e[2K\e[1A\e[2K> %s\e[u> ", cmd_buffer);
-
 		// send request
-
 		long long int number = -1;
 		long long int max = 1;
 		max <<= 32;
@@ -159,21 +160,22 @@ int main(int argc, char** argv){
 }
 
 // -----------------------------------------------------------------------------
-// Inserts a string above the current input line
+// inserts a string above the current progress line
 // Parameters:	string: String		string to be inserted above input line
 // Returns:		void
 // -----------------------------------------------------------------------------
 void printAbove(char* string){
 
-	printf("\n\e[1A\e[2K%s\n%s", string, progressStr);
-	// fflush(stdout);
+	fflush(stdout);
+	printf("\n\e[1A\e[2K%s\n%s (press ENTER to input)", string, progressStr);
+	fflush(stdout);
 
 }
 
 // -----------------------------------------------------------------------------
 // updates the progress of the server tasks, it updates every 500ms if the user
 // is not entering a new command
-// Parameters:	void
+// Parameters:	void* vargp:	thread arguents
 // Returns:		void
 // -----------------------------------------------------------------------------
 void* updateProgressThreadRunnable(void *vargp){
@@ -190,9 +192,8 @@ void* updateProgressThreadRunnable(void *vargp){
 }
 
 // -----------------------------------------------------------------------------
-// 
-// 
-// Parameters:	void
+// reads new results from the server and prints them immediately
+// Parameters:	void* vargp:	thread arguents
 // Returns:		void
 // -----------------------------------------------------------------------------
 void* updateResultsThreadRunnable(void* vargp){
